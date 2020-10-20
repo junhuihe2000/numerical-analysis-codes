@@ -1,6 +1,6 @@
 %solve a problem about linear equation
 %input a Hilbert matrix
-n=15;
+n=50;
 H=Hilm(n);
 x=ones(n,1);
 b=H*x;
@@ -14,6 +14,14 @@ y3=tiknor(H,b)
 y4=congra(H,b)
 %GMRES
 y5=gmre(H,b)
+%jacobi iteration
+y6=jac(H,b)
+%Gauss-Seidel iteration
+y7=gsit(H,b)
+%SOR
+y8=sor(H,b,0.8)
+%GMRES(m)
+y9=gmrem(H,b)
 
 %Gauss column pivot elimination
 function y=gaueli(A,b)
@@ -101,6 +109,90 @@ for j=1:r
 end
 end
 
+%Jacobi iteration to solve Ax=b
+function x=jac(A,b)
+n=length(b);D=zeros(n);L=D;U=D;Dinv=D;
+%A=D-L-U
+for i=1:n
+    if A(i,i)==0
+        disp('the jacobi iteration is not suitable for this equation');
+        return;
+    end
+    D(i,i)=A(i,i);
+    Dinv(i,i)=1/A(i,i);
+    for j=1:i-1
+        L(i,j)=-A(i,j);
+        U(j,i)=-A(j,i);
+    end
+end
+%B=Dinv*(L+U),f=Dinv*b
+B=Dinv*(L+U);f=Dinv*b;
+e=0.001;x=zeros(n,1);k=0;
+while norm(b-A*x)>e
+    k=k+1;
+    x=B*x+f;
+    if k>100
+        disp('the jacobi iteration is not suitale for this equation');
+        return;
+    end
+end
+end
+
+%Gauss-Seidel iteration to solve the linear equation
+function x=gsit(A,b)
+n=length(b);D=zeros(n);L=D;U=D;
+%A=D-L-U
+for i=1:n
+    if A(i,i)==0
+        disp('the Gauss-Seidel iteration is not suitable for this equation');
+        return;
+    end
+    D(i,i)=A(i,i);
+    for j=1:i-1
+        L(i,j)=-A(i,j);
+        U(j,i)=-A(j,i);
+    end
+end
+%B=(D-L)inv*U,f=(D-L)inv*b
+T=inv(D-L);
+B=T*U;f=T*b;
+e=0.001;x=zeros(n,1);k=0;
+while norm(b-A*x)>e
+    k=k+1;
+    x=B*x+f;
+    if k>1000
+        disp('the Gauss-Seidel iteration is not suitale for this equation');
+        return;
+    end
+end
+end
+
+%Successive Over Relaxation
+function x=sor(A,b,w);
+%w is the relaxation factor
+n=length(b);D=zeros(n);L=D;U=D;
+%A=D-L-U
+for i=1:n
+    D(i,i)=A(i,i);
+    for j=1:i-1
+        L(i,j)=-A(i,j);
+        U(j,i)=-A(j,i);
+    end
+end
+%B=(D-wL)inv[(1-w)D+wU],f=(D-wL)inv*wb
+T=inv(D-w*L);
+B=T*((1-w)*D+w*U);f=T*w*b;
+e=0.001;x=zeros(n,1);k=0;
+while norm(b-A*x)>e
+    k=k+1;
+    x=B*x+f;
+    if k>1000
+        disp('the SOR iteration is not suitale for this equation');
+        return;
+    end
+end
+end
+
 %conjugate gradient algorithm
 function x=congra(A,b)
 n=length(b);e=0.001;
@@ -139,6 +231,24 @@ for m=1:n
     ym=lsp(Hhat,beta);
     x=x0+V(:,1:m)*ym;
     if norm(b-A*x)<e
+        return;
+    end
+end
+end
+
+%GMRES(m) algorithm
+function x=gmrem(A,b)
+e=0.001;
+n=length(b);x=zeros(n,1);r=b-A*x;beta=norm(r);
+%m=5
+m=5;
+k=0;
+while norm(b-A*x)>e
+    k=k+1;
+    [V,Hhat]=arno(A,r,m);
+    y=lsp(Hhat,beta);
+    x=x+V(:,1:m)*y;r=b-A*x;beta=norm(r);
+    if k>10000
         return;
     end
 end
